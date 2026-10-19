@@ -1,155 +1,57 @@
-![BiliTool banner](docs/imgs/2233.png)
+# BiliBiliToolPro（自用部署版）
 
-<div align="center">
+上游 [RayWangQvQ/BiliBiliToolPro](https://github.com/RayWangQvQ/BiliBiliToolPro) 的 fork，
+只做两件事：**加一份能跑的 GitHub Actions 工作流**，**给观看任务加一个数量上限**。
+其余代码、文档全部保持上游原样。
 
-# BiliTool
+## 和上游的差别
 
-Automate recurring Bilibili tasks across one or more accounts.
+| 改动 | 文件 | 原因 |
+| --- | --- | --- |
+| 新增可用的 Actions 工作流 | `.github/workflows/bilibili-daily-task.yml` | 上游把模板归档到 `platforms/gitHubActions/bak/`，用的是 .NET 6 + 已废弃的 `::set-output`，fork 出来直接跑不起来 |
+| 新增 `MaxWatchAnchors` 配置项 | `LiveFansMedalTaskOptions.cs`、`LiveFansMedalTaskRunner.cs` | 上游会把所有牌子排进观看队列，87 枚 × 每枚 15 分钟 = 三小时以上，Actions 跑不完。加了上限后按**等级从高到低**取前 N 枚，且只取**正在开播**的房间 |
 
-[![GitHub Stars](https://img.shields.io/github/stars/RayWangQvQ/BiliBiliToolPro?style=flat-square)](https://github.com/RayWangQvQ/BiliBiliToolPro/stargazers)
-[![GitHub Forks](https://img.shields.io/github/forks/RayWangQvQ/BiliBiliToolPro?style=flat-square)](https://github.com/RayWangQvQ/BiliBiliToolPro/network)
-[![GitHub Issues](https://img.shields.io/github/issues/RayWangQvQ/BiliBiliToolPro?style=flat-square)](https://github.com/RayWangQvQ/BiliBiliToolPro/issues)
-[![GitHub Contributors](https://img.shields.io/github/contributors/RayWangQvQ/BiliBiliToolPro?style=flat-square)](https://github.com/RayWangQvQ/BiliBiliToolPro/graphs/contributors)
-[![GitHub Downloads](https://img.shields.io/github/downloads/RayWangQvQ/BiliBiliToolPro/total?style=flat-square)](https://github.com/RayWangQvQ/BiliBiliToolPro/releases)
-[![Latest Release](https://img.shields.io/github/v/release/RayWangQvQ/BiliBiliToolPro?style=flat-square)](https://github.com/RayWangQvQ/BiliBiliToolPro/releases)
-[![License](https://img.shields.io/github/license/RayWangQvQ/BiliBiliToolPro?style=flat-square)](LICENSE)
+## 部署
 
-<a href="https://trendshift.io/repositories/3329">
-  <img src="https://trendshift.io/api/badge/repositories/3329" alt="BiliBiliToolPro on Trendshift" width="250" height="55">
-</a>
+1. Fork 本仓库，在 **Settings → Secrets and variables → Actions** 添加：
 
-</div>
+   | 名称 | 内容 |
+   | --- | --- |
+   | `COOKIESTR_1` | `SESSDATA=xxx; bili_jct=yyy; DedeUserID=zzz` |
+   | `COOKIESTR_2` | 第二个账号，同上（只用单账号就不加） |
+   | `PUSHPLUS_TOKEN` | 可选，PushPlus 推送 token，不填就是不推送 |
 
-BiliTool runs scheduled Bilibili activities through the platform's APIs. Use the Web panel to manage accounts, configuration, schedules, and execution logs, or run tasks with the Console host and your preferred scheduler.
+2. Actions 里手动跑一次 `B站粉丝牌每日任务` 验证，之后每天北京时间 00:05 自动跑。
 
-It supports QR-code login and cookie updates, multiple Bilibili accounts, daily experience tasks, live-room and manga activities, VIP benefits, B-coin voucher charging, batch unfollowing, and optional notifications. Each activity can be configured independently; availability depends on your account and Bilibili's current services.
+## 常用参数
 
-> [!IMPORTANT]
-> This project is intended for learning and testing. Review the tasks and configuration before running them, use it responsibly, and comply with Bilibili's terms. Do not expose account cookies or other secrets in issues or public configuration.
+工作流手动触发时可以覆盖（`workflow_dispatch` 的三个输入项）：
 
-<p align="center">
-  <img src="docs/imgs/web-index.png" alt="Web panel schedules" width="800">
-  <br>
-  <img src="docs/imgs/web-schedules.png" alt="Web panel schedules" width="800">
-  <br>
-  <img src="docs/imgs/web-schedules-log.png" alt="Web panel execution logs" width="800">
-  <br>
-  <img src="docs/imgs/web-configs.png" alt="Web panel configuration" width="800">
-</p>
+- `tasks` — `LiveFansMedal`（只跑直播间互动）或 `Daily&LiveFansMedal`
+- `max_watch` — 最多挂几个直播间，默认 4，`0` = 不限
+- `heartbeats` — 每个房间挂几分钟，默认 16
 
-## Get started
+对应环境变量：`Ray_LiveFansMedalTaskConfig__MaxWatchAnchors` / `__HeartBeatNumber`。
 
-Choose one deployment guide, start the application, and run the **Login** task to add a Bilibili account by scanning its QR code. Then configure the tasks and schedules you want to use.
+## 关于亲密度规则（2026-04 改版）
 
-| Environment | Guide |
-| --- | --- |
-| Containers | [Docker](platforms/docker/README.md) · [Podman](platforms/podman/README.md) · [Helm / Kubernetes](platforms/helm/README.md) |
-| Automation panels | [Qinglong](platforms/qinglong/README.md) · [Baihu](platforms/baihu/README.md) · [Daidai](platforms/daidai/README.md) |
-| Local machine or server | [Download and run the application](docs/runInLocal.md) |
-| Other platforms | [Tencent SCF](platforms/tencentScf/README.md) · [Krew](platforms/krew/README.md) · [GitHub Actions (archived recipe)](platforms/gitHubActions/README.md) |
+B 站现在的粉丝牌任务表：
 
-The GitHub Actions task workflows are stored under `platforms/gitHubActions/bak/`, not in the active repository workflows. That guide describes an archived recipe, **not** a ready-to-enable deployment.
-
-For settings, environment variables, and task-specific options, see the [configuration guide](docs/configuration.md). For troubleshooting, see the [FAQ](docs/questions.md).
-
-## Available tasks
-
-A **task** is a runnable unit of work. Some tasks contain several individual activities; enable only the ones you need.
-
-| Task | Console code | What it does | Suggested frequency |
+| 任务 | 条件 | 收益 | 每日上限 |
 | --- | --- | --- | --- |
-| QR-code login | `Login` | Adds an account or refreshes an expired cookie | Manually, when needed |
-| Daily tasks | `Daily` | Handles login, video viewing, sharing, and coin contributions for daily experience | Once a day |
-| Live-room lottery | `LiveLottery` | Enters eligible live-room lotteries; some require following the host | Up to four times a day |
-| Batch unfollow | `UnfollowBatched` | Unfollows accounts in a configured group | Manually |
-| VIP points | `VipBigPoint` | Completes eligible VIP points activities | Once a day |
-| Fan medal | `LiveFansMedal` | Runs live-room fan-medal activities | Once a day |
-| Manga | `Manga` | Checks in and reads manga | Once a day |
-| VIP manga benefits | `MangaPrivilege` | Claims eligible manga benefits | Once a day |
-| Silver-to-coin exchange | `Silver2Coin` | Exchanges live-room silver seeds for coins | Once a day |
-| B-coin charging | `Charge` | Uses an eligible VIP B-coin voucher to support a creator | Once a day |
-| VIP benefits | `VipPrivilege` | Claims eligible VIP benefits | Once a day |
-| Cookie check | `Test` | Checks whether a cookie is usable | Manually |
+| 投喂粉丝灯牌 | 1 次 | +6 | 1 |
+| **观看直播** | **满 15 分钟** | **+1** | **10** |
+| 发弹幕 | 1 条 | +1 | 10 |
+| 投喂礼物 | 按电池 | +1/电池 | — |
 
-Task eligibility, rewards, and timing are controlled by Bilibili and may change. Check the [configuration guide](docs/configuration.md) for switches, schedules, and creator IDs.
+意思是：**一枚牌子当天想靠看直播拿满 10 点，需要挂 150 分钟**。挂 2 分钟、10 分钟都不会涨，
+因为没到第一个 15 分钟的门槛——不是程序没生效。
 
-## Multiple accounts
+发弹幕那条（10 条 = 10 点）比挂机便宜得多，但会在别人直播间留下弹幕，所以工作流里
+`EnableDanmaku` 默认是 `false`，想开自己改。
 
-Run the **Login** task again to add another Bilibili account. Where the cookie is stored depends on the host:
+## 已知限制
 
-- **Web panel:** accounts are managed in the panel and stored in `config/BiliBiliTool.db`.
-- **Qinglong:** cookies are saved as environment variables such as `Ray_BiliBiliCookies__0`, `Ray_BiliBiliCookies__1`, and so on.
-- **Console and other non-Web hosts:** the default local account file is `cookies.json`:
-
-```json
-{
-  "BiliBiliCookies": [
-    "cookie1",
-    "cookie2"
-  ]
-}
-```
-
-The **panel administrator** login is separate from the Bilibili accounts used for tasks. Treat both administrator credentials and Bilibili cookies as secrets.
-
-## Notifications
-
-Optional execution notifications support Telegram, PushPlus, WeCom, DingTalk, Microsoft Teams, ServerChan, CoolPush, and custom API endpoints. Delivery depends on the provider and your configuration. See [notification settings](docs/configuration.md) for setup.
-
-<p align="center">
-  <img src="docs/imgs/push-tg.png" alt="Example Telegram notification" width="300">
-</p>
-
-## Help and releases
-
-Before reporting a problem, update to the latest release and search the [FAQ](docs/questions.md), [configuration guide](docs/configuration.md), [issues](https://github.com/RayWangQvQ/BiliBiliToolPro/issues), and [discussions](https://github.com/RayWangQvQ/BiliBiliToolPro/discussions). Open an issue for a reproducible bug or feature request; use discussions for questions and ideas. Never post cookies, tokens, or passwords.
-
-Follow [releases](https://github.com/RayWangQvQ/BiliBiliToolPro/releases) for published versions and the [issue tracker](https://github.com/RayWangQvQ/BiliBiliToolPro/issues) for ongoing work. Merges to `main` produce preview Docker images; stable releases are published separately.
-
-## Contribute
-
-Code and documentation contributions are welcome:
-
-For test naming, levels, and safe local execution, see the [testing guide](docs/testing.md).
-
-1. Search existing issues before starting. For substantial or uncertain changes, open an issue to discuss the approach first.
-2. Fork the repository and make changes based on `main`.
-3. Open a pull request targeting `main` with a clear title and description. After review and successful checks, maintainers squash-merge accepted changes.
-
-Documentation fixes, clarifications, and corrections are just as valuable as code changes.
-
-## Support the project
-
-If BiliTool helps you, you can support its maintenance through the donation QR code below. 
-
-Every sponsorship is a vote for your ideal world!
-
-![Donation QR code](docs/imgs/donate.jpg)
-
-(If you would like to join the discussion group, please include your WeChat ID in the message when making a donation.)
-
-Some creator-ID settings use the maintainer's Bilibili ID as a **default configuration value**. You can change those settings through the configuration file, secrets, or environment variables to support a different creator.
-
-## Acknowledgments and references
-
-- [Bilibili](https://www.bilibili.com/)
-- [SocialSisterYi/bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect)
-- [JunzhouLiu/BILIBILI-HELPER](https://github.com/JunzhouLiu/BILIBILI-HELPER)
-
-Thanks to JetBrains for a free open-source license:
-
-<p align="center">
-  <img src="https://resources.jetbrains.com/storage/products/company/brand/logos/ReSharper.svg" alt="ReSharper logo" width="200">
-</p>
-
-Thanks to [YxVM](https://yxvm.com/aff.php?aff=668), [NodeSeekDev](https://github.com/NodeSeekDev/NodeSupport), and [DartNode](https://dartnode.com?aff=FriskyGopher833) for supporting the project's test servers.
-
-<p align="center">
-  <a href="https://yxvm.com/aff.php?aff=668"><img src="docs/imgs/node-support.png" alt="YxVM and NodeSeekDev sponsorship" width="200"></a>
-</p>
-
-[![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode")
-
-Thanks to everyone who has starred this project:
-
-[![Star history chart](https://api.star-history.com/svg?repos=RayWangQvQ/BiliBiliToolPro&type=Date)](https://www.star-history.com/#RayWangQvQ/BiliBiliToolPro&Date)
+- 只看得到工作流启动那一刻**正在开播**的主播，后半夜才开播的抓不到
+- 单枚牌子一天最多 +10（看直播）+ 6（投喂灯牌），升级是慢活
+- 上游本身的功能（投币、大会员权益、直播抽奖等）都没动，需要的话改 `tasks` 参数

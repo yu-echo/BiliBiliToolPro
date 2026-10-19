@@ -101,7 +101,22 @@ public class LiveFansMedalTaskRunner(
         }
 
         if (action == "watchLive")
-            await Task.WhenAll(medals.Select(ExecuteAsync));
+        {
+            // 只有开播中的房间才值得占并发名额；等级高的先挂（等级越高升级越慢）。
+            // MaxWatchAnchors > 0 时截断，避免几十枚牌子把一轮拖成几小时。
+            IEnumerable<FansMedalPanelItem> queue = medals
+                .Where(m => m.Room_info.Living_status == 1)
+                .OrderByDescending(m => m.Medal.Level);
+            if (options.MaxWatchAnchors > 0)
+                queue = queue.Take(options.MaxWatchAnchors);
+            var targets = queue.ToList();
+            logger.LogInformation(
+                "观看任务：开播中 {live} 枚，本轮挂机 {count} 枚",
+                medals.Count(m => m.Room_info.Living_status == 1),
+                targets.Count
+            );
+            await Task.WhenAll(targets.Select(ExecuteAsync));
+        }
         else
             foreach (var medal in medals)
                 await ExecuteAsync(medal);

@@ -35,6 +35,11 @@ public class LiveFansMedalTaskOptions : BaseConfigOptions
     [Range(0, 1440, ErrorMessage = "观看时长应为 0～1440 分钟")]
     public int HeartBeatNumber { get; set; } = 70;
 
+    // 0 = 不限。观看任务按等级从高到低排队，超过这个数量就不再进队列，
+    // 避免几十枚牌子把一轮拖到几小时（每枚单独占用一个并发名额）。
+    [Range(0, 500, ErrorMessage = "最多挂机数量应为 0～500")]
+    public int MaxWatchAnchors { get; set; }
+
     [Range(1, 10)]
     public int HeartBeatSendGiveUpThreshold { get; set; } = 5;
 

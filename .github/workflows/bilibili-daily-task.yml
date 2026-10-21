@@ -15,22 +15,31 @@ on:
         type: string
         default: '4'
       heartbeats:
-        description: '每个直播间挂几分钟（B站规则：满 15 分钟 +1 点，上限 10 次/天）'
+        description: '每个直播间挂几分钟（B站规则：满 15 分钟 +1 点，上限 10 次/天；70=吃满 4 档）'
         type: string
-        default: '16'
+        default: '70'
   schedule:
     # UTC 16:05 = 北京时间 00:05，亲密度 0 点重置后立刻跑
     - cron: '5 16 * * *'
 
-# 同一时间只跑一个，避免两次任务抢同一批房间
+# 同一时间只跑一个 run，避免两次 run 抢同一批房间；
+# run 内两账号走 matrix 并行，cookie/粉丝牌互不冲突
 concurrency:
   group: bili-daily
   cancel-in-progress: false
 
 jobs:
   run:
+    name: 账号${{ matrix.account }}
+    strategy:
+      # 一个账号失败不取消另一个
+      fail-fast: false
+      matrix:
+        account: [1, 2]
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # 每号独享预算：挂机 70 分钟 + 点赞长尾（约 15 分钟）+ 编译 ≈ 90 分钟，
+    # 放宽到 120 分钟留余量（matrix 双 job 各自计时，互不占用）
+    timeout-minutes: 120
 
     steps:
       - name: Checkout
@@ -44,19 +53,19 @@ jobs:
       - name: 编译
         run: dotnet build src/Ray.BiliBiliTool.Console/Ray.BiliBiliTool.Console.csproj -c Release
 
-      - name: 执行任务
+      - name: 执行任务（账号 ${{ matrix.account }}）
         env:
           ASPNETCORE_ENVIRONMENT: Production
           # cookie 形如：SESSDATA=xxx; bili_jct=yyy; DedeUserID=zzz
-          Ray_BiliBiliCookies__1: ${{ secrets.COOKIESTR_1 }}
-          Ray_BiliBiliCookies__2: ${{ secrets.COOKIESTR_2 }}
+          # 每个 job 只喂本账号的 cookie（写进槽位 1，工具视为单账号）
+          Ray_BiliBiliCookies__1: ${{ secrets[format('COOKIESTR_{0}', matrix.account)] }}
           # 直播间互动
           Ray_LiveFansMedalTaskConfig__EnableWatch: 'true'
           Ray_LiveFansMedalTaskConfig__EnableLike: 'true'
           # 发弹幕会在别人直播间留下弹幕，默认关；想要那 10 点亲密度再打开
           Ray_LiveFansMedalTaskConfig__EnableDanmaku: 'false'
           Ray_LiveFansMedalTaskConfig__MaxWatchAnchors: ${{ inputs.max_watch || '4' }}
-          Ray_LiveFansMedalTaskConfig__HeartBeatNumber: ${{ inputs.heartbeats || '16' }}
+          Ray_LiveFansMedalTaskConfig__HeartBeatNumber: ${{ inputs.heartbeats || '70' }}
           # PushPlus 推送（没配这个 secret 就等于不推送）
           Ray_Serilog__WriteTo__9__Args__token: ${{ secrets.PUSHPLUS_TOKEN }}
         run: >

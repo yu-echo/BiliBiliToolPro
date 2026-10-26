@@ -2,6 +2,12 @@ name: B站粉丝牌每日任务
 
 # 上游把 GitHub Actions 模板归档到 platforms/gitHubActions/bak/ 了（.NET 6 + 已废弃语法，
 # 跑不起来），这份是针对 .NET 10 重写的可用版本。
+#
+# 2026-10-26：**停掉定时**，只留手动触发。
+# 这个 workflow 的内容 100% 是直播挂机：每号挂 4 个房间 × 70 分钟，
+# 两个账号 matrix 并行，按 120 分钟 timeout 算，一天烧掉约 240 个 job 分钟。
+# 而粉丝牌那点亲密度收益一直没被证实（另一套 watch 的实测：today_feed 从头到尾没动）。
+# 想恢复：把下面注释掉的 schedule 放回来，cron 是 UTC。
 
 on:
   workflow_dispatch:
@@ -18,9 +24,9 @@ on:
         description: '每个直播间挂几分钟（B站规则：满 15 分钟 +1 点，上限 10 次/天；70=吃满 4 档）'
         type: string
         default: '70'
-  schedule:
-    # UTC 16:05 = 北京时间 00:05，亲密度 0 点重置后立刻跑
-    - cron: '5 16 * * *'
+  # schedule:
+  #   # UTC 16:05 = 北京时间 00:05，亲密度 0 点重置后立刻跑
+  #   - cron: '5 16 * * *'
 
 # 同一时间只跑一个 run，避免两次 run 抢同一批房间；
 # run 内两账号走 matrix 并行，cookie/粉丝牌互不冲突
